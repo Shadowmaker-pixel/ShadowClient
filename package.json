@@ -1,0 +1,50 @@
+{
+  "name": "shadow-client",
+  "version": "1.0.0",
+  "description": "Shadow Client Minecraft Launcher",
+  "main": "main.js",
+  "author": "ShadowGamerMC",
+  "scripts": {
+    "start": "electron .",
+    "build-linux": "electron-builder --linux AppImage",
+    "build-deb": "electron-builder --linux deb",
+    "build-win": "electron-builder --win",
+    "build-all": "electron-builder -wl"
+  },
+  "dependencies": {
+    "form-data": "^4.0.0",
+    "minecraft-launcher-core": "^3.2.2",
+    "open": "^8.4.2",
+    "prismarine-auth": "^2.1.0"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.shadowclient.launcher",
+    "productName": "Shadow Client",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*"
+    ],
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Game",
+      "maintainer": "ShadowGamerMC",
+      "executableName": "shadow-client"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

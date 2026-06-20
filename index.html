@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Client</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Exo+2:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #a78bfa;
+            --accent2: #818cf8;
+            --accent3: #60a5fa;
+            --danger: #f43f5e;
+            --bg: #07070f;
+            --surface: rgba(255,255,255,0.04);
+            --surface-hover: rgba(255,255,255,0.08);
+            --border: rgba(255,255,255,0.08);
+            --border-accent: rgba(167,139,250,0.35);
+            --text-dim: #4b5563;
+            --text-mid: #9ca3af;
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+            --theme-transition: background 0.45s ease, border-color 0.45s ease, box-shadow 0.45s ease, color 0.45s ease;
+        }
+
+        body.theme-emerald { --accent: #34d399; --accent2: #10b981; --accent3: #6ee7b7; --border-accent: rgba(52,211,153,0.35); --bg: #050f0a; }
+        body.theme-crimson { --accent: #f87171; --accent2: #ef4444; --accent3: #fca5a5; --border-accent: rgba(248,113,113,0.35); --bg: #0f0505; }
+        body.theme-gold { --accent: #fbbf24; --accent2: #f59e0b; --accent3: #fde68a; --border-accent: rgba(251,191,36,0.35); --bg: #0f0d05; }
+
+        * { 
+            box-sizing: border-box; 
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Exo 2', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            background: var(--bg);
+            color: white;
+            user-select: none;
+            text-rendering: optimizeLegibility;
+        }
+
+        .side-btn, .login-btn, .play-btn, .theme-card, .instance-card, 
+        .player-head, .gear-btn, .mod-row-icon, .mods-search-wrap, 
+        .skin-mc-btn, .logout-btn, .skin-drop-zone, .version-container, .settings-panel {
+            transform: translateZ(0);
+            backface-visibility: hidden;
+            outline: 1px solid transparent; 
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(28px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideInLeft { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes logoFloat { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-8px) rotate(1deg); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spinReverse { to { transform: rotate(-360deg); } }
+        @keyframes clickPop { 0% { transform: scale(1); } 35% { transform: scale(1.35); } 100% { transform: scale(1); } }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(16px) scale(0.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        
+        @keyframes shimmerFast {
+            0%   { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        @keyframes pulseOptimized {
+            0%, 100% { opacity: 0.25; transform: scale(0.95); }
+            50%      { opacity: 0.65; transform: scale(1.05); }
+        }
+
+        .sidebar {
+            width: 110px;
+            background: rgba(6,6,12,0.97);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 100px;
+            gap: 12px;
+            border-right: 1px solid var(--border);
+            z-index: 50;
+            position: relative;
+        }
+        .sidebar::after {
+            content: '';
+            position: absolute;
+            top: 15%; right: 0;
+            width: 1px; height: 70%;
+            background: linear-gradient(180deg, transparent, rgba(167,139,250,0.5), rgba(96,165,250,0.3), transparent);
+            pointer-events: none;
+        }
+        .sidebar.active {
+            display: flex;
+            animation: slideInLeft 0.45s var(--ease-out) forwards;
+        }
+
+        .side-btn {
+            width: 72px; height: 72px; border-radius: 20px;
+            border: 1px solid transparent; background: transparent;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.22s var(--ease-out); position: relative; gap: 4px;
+        }
+        .side-btn::before {
+            content: ''; position: absolute; inset: 0; border-radius: 20px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent3));
+            opacity: 0; transition: opacity 0.22s ease;
+        }
+        .side-btn svg { width: 32px; height: 32px; fill: #383858; transition: all 0.22s ease; position: relative; z-index: 1; }
+        .side-btn:hover { border-color: var(--border-accent); transform: translateX(4px); background: rgba(167,139,250,0.06); }
+        .side-btn:hover svg { fill: var(--accent); filter: drop-shadow(0 0 7px rgba(167,139,250,0.7)); }
+        .side-btn.active-nav { border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.07); box-shadow: 0 0 28px rgba(167,139,250,0.18), inset 0 0 24px rgba(167,139,250,0.06); }
+        .side-btn.active-nav::before { opacity: 0.14; }
+        .side-btn.active-nav svg { fill: var(--accent3); filter: drop-shadow(0 0 10px rgba(96,165,250,0.8)) drop-shadow(0 0 4px rgba(167,139,250,0.9)); }
+        .side-btn.active-nav::after {
+            content: ''; position: absolute; right: -1px; top: 50%; transform: translateY(-50%);
+            width: 3px; height: 28px; background: linear-gradient(180deg, var(--accent), var(--accent3));
+            border-radius: 3px 0 0 3px; box-shadow: 0 0 10px rgba(167,139,250,0.9);
+        }
+        .side-btn[title]:hover::before { content: none; }
+        .side-btn[title]:hover::after {
+            content: attr(title); position: absolute; left: calc(100% + 18px); right: auto; top: 50%; transform: translateY(-50%);
+            background: rgba(10,9,20,0.97); border: 1px solid var(--border-accent); color: white;
+            font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+            padding: 6px 14px; border-radius: 8px; white-space: nowrap; z-index: 9999; pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        .main { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; z-index: 1; overflow: hidden; }
+        .content { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        .skin-manager-screen, .mods-screen { position: absolute; inset: 0; max-width: 100% !important; width: 100% !important; height: 100% !important; }
+
+        .close-btn {
+            position: absolute; top: 20px; right: 20px; width: 46px; height: 46px; border-radius: 12px;
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: center; align-items: center;
+            cursor: pointer; color: #555; font-size: 20px; transition: all 0.18s var(--ease-spring); z-index: 1000; font-weight: 300;
+        }
+        .close-btn:hover { background: var(--danger); color: white; border-color: var(--danger); transform: rotate(90deg) scale(1.1); box-shadow: 0 0 20px rgba(244,63,94,0.5); }
+
+        .player-box {
+            position: absolute; top: 20px; right: 78px; display: flex; align-items: center; gap: 12px;
+            background: rgba(6,6,12,0.9); padding: 9px 18px 9px 10px; border-radius: 14px; border: 1px solid var(--border);
+            backdrop-filter: blur(8px); z-index: 100; transition: all 0.2s ease;
+        }
+        .player-box:hover { border-color: rgba(167,139,250,0.35); background: rgba(167,139,250,0.05); box-shadow: 0 0 20px rgba(167,139,250,0.1); }
+        .player-head { width: 38px; height: 38px; border-radius: 6px; image-rendering: pixelated; transition: transform 0.22s var(--ease-spring); box-shadow: 0 0 12px rgba(167,139,250,0.2); }
+        .player-box:hover .player-head { transform: scale(1.1) rotate(-4deg); }
+        .player-name { font-size: 16px; font-weight: 700; letter-spacing: 1px; font-family: 'Rajdhani', sans-serif; background: linear-gradient(135deg, white 40%, var(--accent3)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .screen { display: none; flex-direction: column; align-items: center; width: 100%; max-width: 1020px; }
+        .screen.active { display: flex; animation: fadeUp 0.38s var(--ease-out) forwards; }
+
+        .logo {
+            width: 130px; height: 130px; border-radius: 24px; display: flex; align-items: center; justify-content: center;
+            font-family: 'Rajdhani', sans-serif; font-size: 68px; font-weight: 700; margin-bottom: 32px; position: relative;
+            animation: logoFloat 5s ease-in-out infinite; cursor: default; will-change: transform;
+        }
+        .logo::before { content: ''; position: absolute; inset: 0; border-radius: 24px; background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent3)); z-index: 0; }
+        
+        .logo::after {
+            content: ''; position: absolute; inset: -20px; border-radius: 40px;
+            background: radial-gradient(circle, var(--accent) 0%, transparent 65%); z-index: -1;
+            will-change: opacity, transform; animation: pulseOptimized 3.5s infinite ease-in-out;
+        }
+        .logo span { position: relative; z-index: 1; }
+
+        .login-tagline { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 5px; color: #2a2a40; text-transform: uppercase; margin-bottom: 8px; }
+        .login-title { font-family: 'Rajdhani', sans-serif; font-size: 34px; font-weight: 700; letter-spacing: 8px; margin-bottom: 36px; background: linear-gradient(135deg, rgba(255,255,255,0.9) 30%, var(--accent) 80%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .login-btn, .play-btn, .skin-mc-btn { position: relative; overflow: hidden; }
+        .login-btn::before, .play-btn::after, .skin-mc-btn::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            will-change: transform; pointer-events: none;
+        }
+        
+        .login-btn { padding: 14px 48px; border-radius: 12px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 2.5px; text-transform: uppercase; transition: all 0.22s var(--ease-spring); box-shadow: 0 0 30px rgba(167,139,250,0.28); }
+        .login-btn::before { animation: shimmerFast 2.5s infinite; }
+        .login-btn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 6px 32px rgba(167,139,250,0.55); }
+        .login-btn:active { transform: scale(0.97); }
+
+        .play-btn { padding: 22px 90px; border-radius: 18px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent3)); color: white; font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 700; cursor: pointer; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 18px; transition: all 0.22s var(--ease-spring); box-shadow: 0 0 40px rgba(167,139,250,0.3); }
+        .play-btn::after { animation: shimmerFast 2s infinite; }
+        .play-btn:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 50px rgba(167,139,250,0.6), 0 0 80px rgba(129,140,248,0.2); }
+        .play-btn:active { transform: scale(0.97); }
+        .play-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
+        .play-btn:disabled::after { display: none; }
+
+        .loading-info { display: flex; flex-direction: column; gap: 12px; width: 480px; animation: fadeUp 0.4s var(--ease-out) 0.1s both; }
+        .loading-info-row { display: flex; align-items: center; gap: 14px; padding: 16px 22px; border-radius: 13px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); font-size: 15px; color: #888; font-family: 'Exo 2', sans-serif; font-weight: 500; }
+        .loading-info-row span:first-child { font-size: 22px; flex-shrink: 0; }
+        .loading-info-row.warning { background: rgba(251,191,36,0.07); border-color: rgba(251,191,36,0.25); color: rgba(251,191,36,0.9); font-size: 16px; }
+        .loading-info-row strong { color: #fbbf24; font-weight: 800; }
+        .loading-info-row code { font-family: 'Courier New', monospace; font-size: 13px; background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.25); color: var(--accent); padding: 2px 8px; border-radius: 5px; }
+
+        .logout-btn { padding: 11px 36px; border-radius: 11px; border: 1px solid rgba(244,63,94,0.25); background: transparent; color: rgba(244,63,94,0.55); font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: color 0.25s ease, border-color 0.25s ease, transform 0.2s var(--ease-spring), box-shadow 0.25s ease; position: relative; overflow: hidden; }
+        .logout-btn::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(244,63,94,0.18), rgba(244,63,94,0.08)); transform: translateX(-100%); transition: transform 0.3s var(--ease-out); }
+        .logout-btn::after { content: ''; position: absolute; left: 0; top: 20%; bottom: 20%; width: 2px; background: linear-gradient(180deg, transparent, var(--danger), transparent); border-radius: 2px; opacity: 0; transition: opacity 0.25s ease; }
+        .logout-btn:hover { color: #fca5a5; border-color: rgba(244,63,94,0.6); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(244,63,94,0.22), 0 0 0 1px rgba(244,63,94,0.15); }
+        .logout-btn:hover::before { transform: translateX(0); }
+        .logout-btn:hover::after  { opacity: 1; }
+        .logout-btn:active { transform: scale(0.96) translateY(0); box-shadow: 0 0 0 3px rgba(244,63,94,0.2); }
+
+        .version-container { width: 920px; background: rgba(6,6,12,0.9); border-radius: 20px; padding: 24px 24px 20px; border: 1px solid var(--border); backdrop-filter: blur(10px); box-shadow: 0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.04); position: relative; overflow: hidden; }
+        .version-container::before { content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, rgba(167,139,250,0.6), rgba(96,165,250,0.4), transparent); }
+
+        .version-modes { display: flex; justify-content: center; gap: 4px; margin-bottom: 22px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 12px; border: 1px solid var(--border); width: fit-content; margin-inline: auto; }
+        .mode-btn { padding: 9px 26px; border-radius: 8px; border: none; background: transparent; color: #404060; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.2s var(--ease-out); text-transform: uppercase; letter-spacing: 2px; position: relative; }
+        .mode-btn:hover { color: var(--text-mid); background: rgba(255,255,255,0.04); }
+        .mode-btn.active { background: linear-gradient(135deg, rgba(167,139,250,0.18), rgba(129,140,248,0.14)); color: white; border: 1px solid rgba(167,139,250,0.25); box-shadow: inset 0 1px 0 rgba(255,255,255,0.08); }
+        .mode-btn.active::after { content: ''; position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 14px; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; box-shadow: 0 0 6px rgba(167,139,250,0.8); }
+
+        .instances-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; max-height: 390px; overflow-y: auto; padding-right: 6px; }
+        .instances-grid::-webkit-scrollbar { width: 3px; }
+        .instances-grid::-webkit-scrollbar-track { background: transparent; }
+        .instances-grid::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--accent), var(--accent2)); border-radius: 4px; }
+        .instance-card-wrap { position: relative; }
+        .instance-card { background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 18px 14px; text-align: center; cursor: pointer; transition: all 0.2s var(--ease-out); position: relative; overflow: hidden; }
+        .instance-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(167,139,250,0.07), transparent 60%); opacity: 0; transition: opacity 0.2s ease; }
+        .instance-card::after { content: ''; position: absolute; bottom: 0; left: 20%; right: 20%; height: 1px; background: linear-gradient(90deg, transparent, rgba(167,139,250,0.5), transparent); opacity: 0; transition: opacity 0.2s ease; }
+        .instance-card:hover { border-color: rgba(167,139,250,0.25); transform: translateY(-3px); box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 0 0 1px rgba(167,139,250,0.1); }
+        .instance-card:hover::before { opacity: 1; }
+        .instance-card:hover::after  { opacity: 1; }
+        .instance-card.active { border-color: rgba(167,139,250,0.5); background: rgba(167,139,250,0.07); box-shadow: 0 0 0 1px rgba(167,139,250,0.2), 0 8px 32px rgba(167,139,250,0.15); }
+        .instance-card.active::before { opacity: 1; }
+        .instance-card.active::after  { opacity: 1; }
+
+        .skin-manager-screen { width: 100%; max-width: 100% !important; height: 100vh; justify-content: stretch; align-items: stretch; padding: 0; margin: 0; }
+        .skin-manager { display: flex; width: 100%; height: 100%; gap: 0; }
+        .skin-left { display: flex; flex-direction: column; gap: 16px; width: 340px; flex-shrink: 0; padding: 32px 28px; background: rgba(0,0,0,0.25); border-right: 1px solid var(--border); overflow-y: auto; }
+        .skin-title { margin: 0; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 4px; color: var(--accent); text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        .skin-title::before { content: ''; width: 3px; height: 14px; background: linear-gradient(180deg, var(--accent), var(--accent3)); border-radius: 2px; }
+        .skin-drop-zone { border: 2px dashed rgba(167,139,250,0.25); border-radius: 14px; padding: 22px 16px; text-align: center; cursor: pointer; transition: all 0.22s var(--ease-out); background: rgba(167,139,250,0.03); position: relative; }
+        .skin-drop-zone:hover, .skin-drop-zone.dragging { border-color: rgba(167,139,250,0.6); background: rgba(167,139,250,0.08); box-shadow: 0 0 24px rgba(167,139,250,0.12); }
+        .skin-drop-zone.dragging { transform: scale(1.02); }
+        .skin-drop-icon { font-size: 28px; margin-bottom: 8px; }
+        .skin-drop-text { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; color: white; letter-spacing: 1px; }
+        .skin-drop-sub { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+        .skin-divider { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 10px; font-family: 'Rajdhani', sans-serif; font-weight: 700; letter-spacing: 2px; }
+        .skin-divider::before, .skin-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .skin-input-row { display: flex; gap: 8px; }
+        .skin-input { flex: 1; background: rgba(0,0,0,0.4); border: 1px solid var(--border); padding: 11px 14px; border-radius: 10px; color: white; font-family: 'Exo 2', sans-serif; font-size: 13px; outline: none; transition: all 0.2s ease; }
+        .skin-input:focus { border-color: var(--border-accent); box-shadow: 0 0 0 3px rgba(167,139,250,0.1); }
+        .skin-apply-btn { width: 42px; border-radius: 10px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent3)); color: white; font-size: 18px; cursor: pointer; transition: all 0.2s var(--ease-spring); flex-shrink: 0; }
+        .skin-apply-btn:hover { transform: scale(1.1); box-shadow: 0 0 16px rgba(167,139,250,0.5); }
+        .skin-preview-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 14px; padding: 24px 16px; min-height: 220px; position: relative; overflow: hidden; }
+        .skin-preview-wrap::before { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(0deg, rgba(167,139,250,0.06), transparent); }
+        .skin-preview-img { height: 260px; image-rendering: auto; filter: drop-shadow(0 8px 24px rgba(0,0,0,0.6)); transition: transform 0.3s var(--ease-spring), opacity 0.25s ease; }
+        .skin-preview-img:hover { transform: scale(1.06); }
+        .skin-preview-name { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--text-mid); margin-top: 12px; text-transform: uppercase; }
+        .skin-save-btn { padding: 13px; border-radius: 10px; border: 1px solid var(--border-accent); background: rgba(167,139,250,0.08); color: var(--accent); font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; cursor: pointer; transition: all 0.2s var(--ease-out); display: flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; }
+        .skin-save-btn:hover { background: rgba(167,139,250,0.18); box-shadow: 0 0 20px rgba(167,139,250,0.2); transform: translateY(-1px); }
+        .skin-variant-row { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+        .skin-variant-label { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--text-dim); text-transform: uppercase; white-space: nowrap; }
+        .skin-variant-toggle { display: flex; gap: 4px; background: rgba(0,0,0,0.3); padding: 4px; border-radius: 8px; border: 1px solid var(--border); }
+        .skin-variant-btn { padding: 5px 14px; border-radius: 5px; border: none; background: transparent; color: var(--text-dim); font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; cursor: pointer; transition: all 0.18s ease; }
+        .skin-variant-btn.active { background: linear-gradient(135deg, rgba(167,139,250,0.25), rgba(96,165,250,0.2)); color: white; border: 1px solid rgba(167,139,250,0.3); }
+        .skin-variant-btn:not(.active):hover { color: var(--text-mid); }
+
+        .skin-mc-btn { padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent3)); color: white; font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.22s var(--ease-spring); display: flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; box-shadow: 0 0 24px rgba(167,139,250,0.25); }
+        .skin-mc-btn::before { animation: shimmerFast 2s infinite; }
+        .skin-mc-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(167,139,250,0.5); }
+        .skin-mc-btn:active { transform: scale(0.97); }
+        .skin-mc-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .skin-mc-btn:disabled::before { display: none; }
+
+        .skin-mc-status { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 1px; text-align: center; min-height: 18px; transition: all 0.2s ease; }
+        .skin-mc-status.success { color: #4ade80; }
+        .skin-mc-status.error   { color: var(--danger); }
+
+        .skin-right { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .skin-list-header { display: flex; align-items: center; justify-content: space-between; padding: 24px 32px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .skin-list-title { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 3px; color: var(--text-mid); display: flex; align-items: center; gap: 8px; }
+        .skin-list-title::before { content: ''; width: 3px; height: 14px; background: linear-gradient(180deg, var(--accent), var(--accent3)); border-radius: 2px; }
+        .skin-list-count { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.2); color: var(--accent); padding: 3px 12px; border-radius: 20px; }
+        .skin-list { flex: 1; overflow-y: auto; padding: 20px 32px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; align-content: start; }
+        .skin-list::-webkit-scrollbar { width: 3px; }
+        .skin-list::-webkit-scrollbar-thumb { background: var(--border-accent); border-radius: 3px; }
+        .skin-list-empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-dim); font-size: 13px; font-family: 'Rajdhani', sans-serif; letter-spacing: 1px; text-align: center; padding: 80px 0; gap: 10px; }
+
+        .skin-entry { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 14px 14px; border-radius: 14px; border: 1px solid var(--border); background: rgba(255,255,255,0.025); cursor: pointer; transition: all 0.2s var(--ease-out); animation: cardIn 0.25s var(--ease-out) both; position: relative; }
+        .skin-entry:hover { border-color: var(--border-accent); background: rgba(167,139,250,0.07); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+
+        @keyframes skinActiveGlow {
+            0%, 100% { opacity: 0.2; transform: scale(0.98); }
+            50%      { opacity: 0.8; transform: scale(1.02); }
+        }
+        .skin-entry.active-skin { border-color: rgba(167,139,250,0.8); background: rgba(167,139,250,0.1); }
+        .skin-entry.active-skin::before {
+            content: ''; position: absolute; inset: -3px; border-radius: 16px; border: 2px solid rgba(167,139,250,0.5);
+            pointer-events: none; opacity: 0; will-change: transform, opacity; animation: skinActiveGlow 2.5s infinite ease-in-out;
+        }
+
+        .skin-entry-avatar { width: 64px; height: 64px; border-radius: 8px; image-rendering: pixelated; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5)); transition: transform 0.2s var(--ease-spring); }
+        .skin-entry:hover .skin-entry-avatar { transform: scale(1.08) rotate(-2deg); }
+        .skin-entry-info { text-align: center; width: 100%; }
+        .skin-entry-name { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.5px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .skin-entry-type { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; margin-top: 2px; font-family: 'Rajdhani', sans-serif; text-transform: uppercase; }
+        .skin-entry-del { position: absolute; top: 8px; right: 8px; background: none; border: none; color: #222; font-size: 13px; cursor: pointer; padding: 3px 5px; border-radius: 5px; transition: all 0.15s ease; line-height: 1; opacity: 0; }
+        .skin-entry:hover .skin-entry-del { opacity: 1; }
+        .skin-entry-del:hover { color: var(--danger); background: rgba(244,63,94,0.12); }
+
+        .loader { width: 56px; height: 56px; position: relative; }
+        .loader::before, .loader::after { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 3px solid transparent; }
+        .loader::before { border-top-color: var(--accent); border-right-color: var(--accent2); animation: spin 0.9s linear infinite; }
+        .loader::after { inset: 8px; border-bottom-color: var(--accent3); animation: spinReverse 1.3s linear infinite; }
+
+        .install-bar { width: 360px; margin-top: 14px; background: rgba(7,7,15,0.8); border: 1px solid var(--border); border-radius: 14px; padding: 14px 18px; backdrop-filter: blur(8px); }
+        .install-bar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .install-bar-label { font-size: 11px; color: var(--text-mid); font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+        .install-bar-percent { font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; color: var(--accent); min-width: 36px; text-align: right; }
+        .install-bar-track { background: rgba(255,255,255,0.05); border-radius: 8px; height: 6px; overflow: hidden; position: relative; }
+        
+        .install-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3)); border-radius: 8px; transition: width 0.35s var(--ease-out); position: relative; overflow: hidden; }
+        .install-bar-fill::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent); animation: shimmerFast 1.5s infinite; will-change: transform; }
+
+        .play-error { color: var(--danger); font-size: 12px; font-weight: 600; margin-top: 10px; display: none; letter-spacing: 0.3px; }
+
+        .gear-btn {
+            position: fixed; bottom: 32px; left: 32px; width: 46px; height: 46px; border-radius: 13px; background: var(--surface);
+            border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; cursor: pointer;
+            z-index: 200; color: var(--text-dim); transition: all 0.2s var(--ease-spring);
+        }
+        .gear-btn:hover { transform: scale(1.15) translateZ(0); background: rgba(167,139,250,0.12); border-color: var(--border-accent); color: var(--accent); box-shadow: 0 0 20px rgba(167,139,250,0.3); }
+        .gear-btn:hover svg { animation: spin 2s linear infinite; }
+        .gear-btn.popping { animation: clickPop 0.35s var(--ease-spring) forwards; }
+        .gear-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+        .mods-screen { width: 100%; height: 100vh; max-width: 100%; align-items: stretch; padding: 0; }
+        .mods-layout { display: flex; width: 100%; height: 100%; gap: 0; }
+        .mods-sidebar { width: 220px; flex-shrink: 0; background: rgba(0,0,0,0.25); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 16px; gap: 0; overflow-y: auto; }
+        .mods-sidebar::-webkit-scrollbar { width: 4px; }
+        .mods-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        .mods-sidebar-section { margin-bottom: 22px; }
+        .mods-sidebar-label { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: #444; text-transform: uppercase; margin-bottom: 10px; }
+        .mods-version-select { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid #2a2a3a; border-radius: 10px; color: white; padding: 10px 12px; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; transition: all 0.22s var(--ease-out); }
+        .mods-version-select:focus { border-color: var(--accent); }
+        .mods-version-select option { background: #1a1730; }
+        .mods-clear-btn { width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid rgba(239,68,68,0.3); background: rgba(239,68,68,0.08); color: #ef4444; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; transition: all 0.22s var(--ease-out); }
+        .mods-clear-btn:hover { background: rgba(239,68,68,0.2); border-color: #ef4444; }
+        .mods-categories { display: flex; flex-direction: column; gap: 2px; }
+        .mods-cat-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; font-size: 13px; color: #888; cursor: pointer; transition: all 0.22s var(--ease-out); border: 1px solid transparent; }
+        .mods-cat-item:hover { background: var(--surface); color: #bbb; }
+        .mods-cat-item.active { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.3); color: var(--accent); }
+        .mods-cat-icon { font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+        .mods-sort-group { display: flex; flex-direction: column; gap: 2px; }
+        .mods-sort-item { padding: 7px 10px; border-radius: 8px; font-size: 13px; color: #666; cursor: pointer; transition: all 0.22s var(--ease-out); border: 1px solid transparent; }
+        .mods-sort-item:hover { background: var(--surface); color: #aaa; }
+        .mods-sort-item.active { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.3); color: var(--accent); font-weight: 700; }
+        .mods-installed-toggle { width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: #888; font-size: 12px; font-weight: 700; letter-spacing: 0.5px; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.22s var(--ease-out); }
+        .mods-installed-toggle:hover, .mods-installed-toggle.active { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.3); color: var(--accent); }
+
+        .mods-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; height: 100%; }
+        .mods-topbar { display: flex; flex-direction: column; gap: 0; padding: 20px 28px 0; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .mods-topbar-row { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; }
+        .mods-topbar-title { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 800; letter-spacing: 2px; color: white; white-space: nowrap; }
+        .mods-search-wrap { flex: 1; display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.35); border: 1px solid #2a2a3a; border-radius: 12px; padding: 0 16px; transition: all 0.22s var(--ease-out); }
+        .mods-search-wrap:focus-within { border-color: var(--accent); }
+        .mods-search-input { flex: 1; background: none; border: none; color: white; font-size: 14px; padding: 12px 0; outline: none; }
+        .mods-search-input::placeholder { color: #444; }
+        .mods-active-tags { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 28px; flex-shrink: 0; }
+        .mods-active-tags:empty { padding: 0; height: 0; overflow: hidden; }
+        .mods-tag-pill { display: flex; align-items: center; gap: 6px; background: rgba(167,139,250,0.15); border: 1px solid rgba(167,139,250,0.35); border-radius: 20px; padding: 4px 10px 4px 12px; font-size: 12px; font-weight: 600; color: var(--accent); }
+        .mods-tag-pill button { background: none; border: none; color: rgba(167,139,250,0.6); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; transition: all 0.22s var(--ease-out); }
+        .mods-tag-pill button:hover { color: var(--accent); }
+        .mods-list-wrap { flex: 1; overflow-y: auto; padding: 8px 28px 28px; }
+        .mods-list-wrap::-webkit-scrollbar { width: 6px; }
+        .mods-list-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        .mods-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 300px; color: #333; gap: 14px; }
+        .mods-empty svg { width: 52px; height: 52px; fill: #2a2a3a; }
+        .mods-empty p { margin: 0; font-size: 14px; color: #444; }
+        .mods-spinner { display: flex; justify-content: center; align-items: center; height: 200px; }
+        .mods-spinner .loader { width: 40px; height: 40px; border-width: 3px; }
+
+        .mod-row { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.04); transition: all 0.22s var(--ease-out); cursor: default; }
+        .mod-row:last-child { border-bottom: none; }
+        .mod-row:hover { background: rgba(255,255,255,0.02); border-radius: 12px; padding-left: 10px; padding-right: 10px; margin: 0 -10px; }
+        .mod-row-icon { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; flex-shrink: 0; background: rgba(167,139,250,0.08); border: 1px solid var(--border); }
+        .mod-row-body { flex: 1; min-width: 0; }
+        .mod-row-name { font-size: 15px; font-weight: 700; color: white; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .mod-row-author { font-size: 11px; color: #555; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .mod-row-desc { font-size: 13px; color: #666; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 500px; }
+        .mod-row-versions { font-size: 11px; color: #3a3a5a; margin-top: 5px; }
+        .mod-row-meta { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+        .mod-row-stat { font-size: 12px; color: #444; display: flex; align-items: center; gap: 4px; }
+        .mod-row-stat svg { width: 13px; height: 13px; fill: #444; }
+        .mod-install-btn { padding: 9px 20px; border-radius: 10px; border: none; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: white; font-size: 12px; font-weight: 800; letter-spacing: 0.5px; cursor: pointer; white-space: nowrap; transition: all 0.22s var(--ease-out); flex-shrink: 0; }
+        .mod-install-btn:hover { filter: brightness(1.15); transform: scale(1.04); }
+        .mod-install-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: none; transform: none; }
+        .mod-install-btn.installed { background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.35); color: #4ade80; }
+
+        .mods-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 28px; border-top: 1px solid var(--border); flex-shrink: 0; background: rgba(0,0,0,0.15); }
+        .mods-pagination.hidden { display: none; }
+        .mods-page-info { font-size: 13px; color: #555; font-weight: 600; margin-right: 4px; }
+        .mods-page-info span { color: #888; }
+        .mods-page-btn { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: #888; font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.22s var(--ease-out); user-select: none; }
+        .mods-page-btn:hover:not(:disabled) { background: rgba(167,139,250,0.15); border-color: rgba(167,139,250,0.4); color: var(--accent); }
+        .mods-page-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+
+        @keyframes toastIn { from { opacity: 0; transform: translateY(30px) scale(0.92); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes toastOut { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(20px) scale(0.95); } }
+        .game-toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); background: rgba(6,6,14,0.97); border: 1px solid rgba(96,165,250,0.45); border-radius: 16px; padding: 14px 28px 14px 18px; display: flex; align-items: center; gap: 14px; z-index: 9999; box-shadow: 0 0 40px rgba(96,165,250,0.2), 0 8px 32px rgba(0,0,0,0.6); animation: toastIn 0.4s var(--ease-spring) forwards; backdrop-filter: blur(8px); pointer-events: none; }
+        .game-toast.out { animation: toastOut 0.35s var(--ease-out) forwards; }
+        .game-toast-icon { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, rgba(96,165,250,0.2), rgba(167,139,250,0.15)); border: 1px solid rgba(96,165,250,0.3); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+        .game-toast-text { font-family: 'Rajdhani', sans-serif; }
+        .game-toast-title { font-size: 14px; font-weight: 700; letter-spacing: 1.5px; color: white; }
+        .game-toast-sub { font-size: 11px; color: #6b7280; margin-top: 1px; letter-spacing: 0.5px; }
+
+        #capePreview { transition: opacity 0.3s ease; }
+
+        .settings-screen { width: 100%; max-width: 860px; padding: 0 24px; display: flex; flex-direction: column; gap: 20px; }
+        .settings-header { display: flex; flex-direction: column; gap: 4px; }
+        .settings-title { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 4px; color: var(--accent); text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        .settings-title::before { content: ''; width: 3px; height: 14px; background: linear-gradient(180deg, var(--accent), var(--accent3)); border-radius: 2px; flex-shrink: 0; }
+
+        .settings-tab-nav { display: flex; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 10px; }
+        .settings-tab-btn { background: transparent; border: none; color: var(--text-mid); font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; padding: 8px 20px; border-radius: 8px; transition: all 0.2s ease; }
+        .settings-tab-btn:hover { color: white; background: rgba(255,255,255,0.05); }
+        .settings-tab-btn.active { color: var(--accent); background: rgba(167,139,250,0.1); border: 1px solid var(--border-accent); }
+
+        .settings-content-tab { display: none; flex-direction: column; animation: fadeIn 0.3s ease; }
+        .settings-content-tab.active { display: flex; }
+
+        .themes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        .theme-card { position: relative; border-radius: 18px; border: 1px solid var(--border); padding: 22px 22px 18px; cursor: pointer; transition: all 0.3s var(--ease-out); overflow: hidden; background: rgba(255,255,255,0.025); }
+        .theme-card::before { content: ''; position: absolute; inset: 0; border-radius: 18px; opacity: 0; transition: opacity 0.3s ease; }
+        .theme-card:hover { transform: translateY(-3px) translateZ(0); box-shadow: 0 12px 36px rgba(0,0,0,0.4); }
+        .theme-card.active-theme { border-color: var(--tc-accent); box-shadow: 0 0 0 1px var(--tc-accent), 0 8px 32px rgba(0,0,0,0.4); }
+        .theme-card.active-theme::before { opacity: 0.07; }
+
+        .theme-card[data-theme="default"] { --tc-accent: #a78bfa; --tc-a2: #818cf8; --tc-a3: #60a5fa; }
+        .theme-card[data-theme="default"]::before { background: linear-gradient(135deg, #a78bfa, #60a5fa); }
+        .theme-card[data-theme="emerald"] { --tc-accent: #34d399; --tc-a2: #10b981; --tc-a3: #6ee7b7; }
+        .theme-card[data-theme="emerald"]::before { background: linear-gradient(135deg, #34d399, #6ee7b7); }
+        .theme-card[data-theme="crimson"] { --tc-accent: #f87171; --tc-a2: #ef4444; --tc-a3: #fca5a5; }
+        .theme-card[data-theme="crimson"]::before { background: linear-gradient(135deg, #f87171, #fca5a5); }
+        .theme-card[data-theme="gold"]    { --tc-accent: #fbbf24; --tc-a2: #f59e0b; --tc-a3: #fde68a; }
+        .theme-card[data-theme="gold"]::before    { background: linear-gradient(135deg, #fbbf24, #fde68a); }
+
+        .theme-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; position: relative; z-index: 1; }
+        .theme-card-name { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: white; }
+        .theme-card-check { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--tc-accent); display: flex; align-items: center; justify-content: center; transition: all 0.2s var(--ease-spring); font-size: 11px; }
+        .theme-card.active-theme .theme-card-check { background: var(--tc-accent); box-shadow: 0 0 12px var(--tc-accent); color: #000; font-weight: 900; }
+        .theme-preview-bar { display: flex; gap: 6px; margin-bottom: 14px; position: relative; z-index: 1; }
+        .theme-preview-bar span { height: 5px; border-radius: 3px; flex: 1; }
+        .theme-preview-bar span:nth-child(1) { background: var(--tc-accent); }
+        .theme-preview-bar span:nth-child(2) { background: var(--tc-a2); opacity: 0.7; }
+        .theme-preview-bar span:nth-child(3) { background: var(--tc-a3); opacity: 0.4; }
+        .theme-preview-mini { display: flex; gap: 5px; position: relative; z-index: 1; }
+        .theme-mini-btn { height: 24px; border-radius: 6px; flex: 1; border: 1px solid; font-family: 'Rajdhani', sans-serif; font-size: 9px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; }
+        .theme-mini-btn.filled { background: linear-gradient(135deg, var(--tc-accent), var(--tc-a2)); border-color: transparent; color: white; }
+        .theme-mini-btn.outline { background: transparent; border-color: var(--tc-accent); color: var(--tc-accent); }
+
+        .settings-panel { background: linear-gradient(160deg, rgba(18,14,36,0.5), rgba(7,7,15,0.6)); border: 1px solid var(--border-accent); border-radius: 20px; padding: 30px; width: 100%; box-shadow: 0 24px 80px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05); position: relative; overflow: hidden; }
+        .settings-panel::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.5; }
+        .ram-label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .ram-label { font-size: 13px; color: var(--text-mid); font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; font-family: 'Rajdhani', sans-serif; }
+        .ram-value { font-family: 'Rajdhani', sans-serif; font-size: 32px; font-weight: 700; color: white; }
+        .ram-value span { font-size: 16px; font-weight: 500; color: var(--text-dim); margin-left: 4px; }
+        .ram-slider-wrap { position: relative; margin-bottom: 18px; }
+        .ram-slider { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 4px; background: rgba(255,255,255,0.07); outline: none; cursor: pointer; }
+        .ram-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); box-shadow: 0 0 14px rgba(167,139,250,0.8); cursor: pointer; transition: transform 0.15s var(--ease-spring); }
+        .ram-slider::-webkit-slider-thumb:hover { transform: scale(1.25); box-shadow: 0 0 22px rgba(167,139,250,1); }
+        .ram-ticks { display: flex; justify-content: space-between; padding: 0 2px; margin-top: 7px; }
+        .ram-ticks span { font-size: 11px; color: var(--text-dim); font-weight: 600; font-family: 'Rajdhani', sans-serif; }
+
+        body, .sidebar, .settings-panel, .version-container,
+        .skin-left, .skin-right, .mods-sidebar, .mods-main,
+        .player-box, .close-btn, .gear-btn, .instance-card,
+        .skin-entry, .mode-btn, .side-btn, .login-btn, .play-btn {
+            transition: background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+
+    </style>
+</head>
+<body>
+
+    <button class="gear-btn" id="gearBtn" title="Einstellungen" style="display: none;">
+        <svg viewBox="0 0 24 24">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.02 7.02 0 0 0-1.62-.94l-.36-2.54A.484.484 0 0 0 14 2h-4a.484.484 0 0 0-.48.41l-.36 2.54a7.02 7.02 0 0 0-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.47a.47.47 0 0 0 .12.61l2.03 1.58c-.04.3-.07.63-.07.94s.03.64.07.94l-2.03 1.58a.47.47 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.36 1.04.67 1.62.94l.36 2.54c.05.24.27.41.48.41h4c.24 0 .44-.17.48-.41l.36-2.54c.58-.27 1.11-.58 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.47.47 0 0 0-.12-.61l-2.03-1.58zM12 15.6A3.6 3.6 0 0 1 8.4 12 3.6 3.6 0 0 1 12 8.4 3.6 3.6 0 0 1 15.6 12 3.6 3.6 0 0 1 12 15.6z"/>
+        </svg>
+    </button>
+
+    <div class="sidebar" id="sidebar">
+        <button class="side-btn" id="homeBtn" title="Home">
+            <svg viewBox="0 0 24 24"><path d="M12 3l9 8h-3v9h-5v-6H11v6H6v-9H3z"/></svg>
+        </button>
+        <button class="side-btn" id="instancesBtn" title="Versionen">
+            <svg viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4zm0 4l9 4 9-4v6l-9 4-9-4v-6z"/></svg>
+        </button>
+        <button class="side-btn" id="skinBtn" title="Skin Wechsler">
+            <svg viewBox="0 0 24 24"><path d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm9 7h-6v13h-2v-6h-2v6H9V9H3V7h18v2z"/></svg>
+        </button>
+        <button class="side-btn" id="capeBtn" title="Cape Manager">
+            <svg viewBox="0 0 24 24"><path d="M12 2C9 2 5 3.5 5 6v13l7-3 7 3V6c0-2.5-4-4-7-4zm0 2c2.5 0 5 1 5 2v9.5l-5-2.1-5 2.1V6c0-1 2.5-2 5-2z"/></svg>
+        </button>
+    </div>
+
+    <div class="main">
+        <div class="player-box" id="playerBox" style="display: none;">
+            <img id="playerHead" class="player-head" src="">
+            <span id="playerName" class="player-name">---</span>
+        </div>
+
+        <div class="close-btn" onclick="window.close()">✕</div>
+
+        <div class="content">
+            <div id="loginScreen" class="screen active">
+                <div class="logo"><span>S</span></div>
+                <p class="login-tagline">NEXT GEN MINECRAFT CLIENT</p>
+                <h1 class="login-title">SHADOW CLIENT</h1>
+                <button id="loginBtn" class="login-btn">MIT MICROSOFT ANMELDEN</button>
+            </div>
+
+            <div id="loadingScreen" class="screen">
+                <div class="loading-info">
+                    <div class="loading-info-row warning">
+                        <span>⚠️</span>
+                        <span>Dieses Fenster <strong>nicht schließen!</strong></span>
+                    </div>
+                    <div class="loading-info-row">
+                        <span>📁</span>
+                        <span>Login-Link gespeichert in: <code>Downloads/shadow_terminal.txt</code></span>
+                    </div>
+                </div>
+                <div class="loader" style="margin-top: 36px;"></div>
+                <p style="margin-top: 28px; color: var(--text-mid); font-family:'Rajdhani',sans-serif; letter-spacing:3px; font-size:13px;">ANMELDUNG LÄUFT...</p>
+            </div>
+
+            <div id="menuScreen" class="screen">
+                <div class="logo"><span>S</span></div>
+                <button id="playBtn" class="play-btn">SPIELEN</button>
+
+                <div class="install-bar" id="installBar" style="display:none;">
+                    <div class="install-bar-header">
+                        <div class="install-bar-label" id="installLabel">Laden...</div>
+                        <div class="install-bar-percent" id="installPercent">0%</div>
+                    </div>
+                    <div class="install-bar-track">
+                        <div class="install-bar-fill" id="installFill"></div>
+                    </div>
+                </div>
+
+                <p class="play-error" id="playErrorMsg"></p>
+                <button id="logoutBtn" class="logout-btn" style="margin-top: 20px;">ABMELDEN</button>
+            </div>
+
+            <div id="instancesScreen" class="screen">
+                <div class="version-container">
+                    <div class="version-modes">
+                        <button class="mode-btn active" data-type="vanilla">Vanilla</button>
+                        <button class="mode-btn" data-type="fabric">Fabric</button>
+                        <button class="mode-btn" data-type="forge">Forge</button>
+                    </div>
+                    <div class="instances-grid" id="versionGrid"></div>
+                </div>
+            </div>
+
+            <div id="skinScreen" class="screen skin-manager-screen">
+                <div class="skin-manager">
+
+                    <div class="skin-left">
+                        <h2 class="skin-title">SKIN MANAGER</h2>
+
+                        <div class="skin-drop-zone" id="skinDropZone">
+                            <div class="skin-drop-icon">🖼️</div>
+                            <div class="skin-drop-text">PNG hier reinziehen</div>
+                            <div class="skin-drop-sub">oder eine der Optionen unten nutzen</div>
+                            <input type="file" id="skinFileInput" accept=".png" style="display:none">
+                        </div>
+
+                        <div class="skin-divider"><span>ODER</span></div>
+
+                        <div class="skin-input-row">
+                            <input type="text" id="skinInput" class="skin-input" placeholder="Spielername oder Link...">
+                            <button id="applySkinBtn" class="skin-apply-btn">→</button>
+                        </div>
+
+                        <div class="skin-preview-wrap">
+                            <img id="skinPreview" src="https://visage.surgeplay.com/full/300/Steve" class="skin-preview-img">
+                            <div class="skin-preview-name" id="skinPreviewName">Steve</div>
+                        </div>
+
+                        <button class="skin-save-btn" id="skinSaveBtn">
+                            <span>💾</span> Lokal speichern
+                        </button>
+
+                        <div class="skin-variant-row">
+                            <span class="skin-variant-label">Skin-Typ:</span>
+                            <div class="skin-variant-toggle">
+                                <button class="skin-variant-btn active" id="variantClassic" onclick="setVariant('classic')">Classic</button>
+                                <button class="skin-variant-btn" id="variantSlim" onclick="setVariant('slim')">Slim (Alex)</button>
+                            </div>
+                        </div>
+
+                        <button class="skin-mc-btn" id="skinApplyMcBtn">
+                            <span>🎮</span> Auf Minecraft anwenden
+                        </button>
+                        <div class="skin-mc-status" id="skinMcStatus"></div>
+                    </div>
+
+                    <div class="skin-right">
+                        <div class="skin-list-header">
+                            <span class="skin-list-title">GESPEICHERTE SKINS <span class="skin-list-count" id="skinListCount">0</span></span>
+                        </div>
+                        <div class="skin-list" id="skinList">
+                            <div class="skin-list-empty" id="skinListEmpty">
+                                <div style="font-size:32px; margin-bottom:10px;">👤</div>
+                                <div>Noch keine Skins gespeichert</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div id="capeScreen" class="screen mods-screen">
+                <div class="mods-layout">
+
+                    <div class="mods-sidebar" style="width:200px;align-items:center;gap:0">
+                        <div style="width:100%;text-align:center;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
+                            <img id="capePreview" src="" style="height:130px;image-rendering:auto;filter:drop-shadow(0 4px 16px rgba(0,0,0,0.6));display:none">
+                            <div id="capeNoPreview" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px 0;color:#4b5563">
+                                <svg style="width:32px;height:32px;fill:#4b5563" viewBox="0 0 24 24"><path d="M12 2C9 2 5 3.5 5 6v13l7-3 7 3V6c0-2.5-4-4-7-4z"/></svg>
+                                <span style="font-size:11px">Lade...</span>
+                            </div>
+                            <div id="capePreviewName" style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--text-mid);text-transform:uppercase;margin-top:6px"></div>
+                        </div>
+
+                        <div class="skin-mc-status" id="capeMcStatus" style="width:100%;text-align:center;margin-bottom:12px;font-size:11px"></div>
+
+                        <div style="width:100%">
+                            <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--text-dim);text-transform:uppercase;margin-bottom:10px">ℹ INFO</div>
+                            <p style="margin:0 0 10px;font-size:11px;color:#6b7280;line-height:1.6">
+                                Capes bekommst du durch Mojang Events, OptiFine oder Minecon.
+                            </p>
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                                <button onclick="openCapeInfo('optifine')" style="padding:7px 10px;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.25);border-radius:8px;color:#a78bfa;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;width:100%">OPTIFINE CAPE →</button>
+                                <button onclick="capeCache={data:null,ts:0};loadMyCurrentCape(true)" style="padding:7px 10px;background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.2);border-radius:8px;color:#34d399;font-size:10px;font-weight:700;cursor:pointer;letter-spacing:1px;width:100%">AKTUALISIEREN ↺</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mods-main" style="display:flex;flex-direction:column">
+                        <div class="mods-topbar">
+                            <div class="mods-topbar-row">
+                                <div class="mods-topbar-title">
+                                    <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:var(--accent);flex-shrink:0"><path d="M12 2C9 2 5 3.5 5 6v13l7-3 7 3V6c0-2.5-4-4-7-4z"/></svg>
+                                    <span>MEINE CAPES</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="capeListWrap" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px">
+                            <div id="capeListEmpty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:60px 0;color:#4b5563;">
+                                <svg style="width:40px;height:40px;fill:#4b5563" viewBox="0 0 24 24"><path d="M12 2C9 2 5 3.5 5 6v13l7-3 7 3V6c0-2.5-4-4-7-4z"/></svg>
+                                <p style="font-size:13px;margin:0">Keine Capes auf diesem Account</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="capeApplyMcBtn" style="display:none"></button>
+                </div>
+            </div>
+
+            <div id="modsScreen" class="screen mods-screen">
+                <div class="mods-layout">
+                    <div class="mods-sidebar">
+                        <div class="mods-sidebar-section">
+                            <div class="mods-sidebar-label">VERSION</div>
+                            <select id="modVersionSelect" class="mods-version-select">
+                                <option value="">Wähle Version...</option>
+                            </select>
+                        </div>
+                        <div class="mods-sidebar-section">
+                            <button class="mods-clear-btn" onclick="clearModFilters()">Filter zurücksetzen</button>
+                        </div>
+                        <div class="mods-sidebar-section">
+                            <div class="mods-sidebar-label">KATEGORIEN</div>
+                            <div class="mods-categories" id="modCategories"></div>
+                        </div>
+                        <div class="mods-sidebar-section">
+                            <div class="mods-sidebar-label">SORTIERUNG</div>
+                            <div class="mods-sort-group" id="modSortGroup">
+                                <div class="mods-sort-item active" data-sort="relevance">Relevanz</div>
+                                <div class="mods-sort-item" data-sort="downloads">Downloads</div>
+                                <div class="mods-sort-item" data-sort="newest">Neueste</div>
+                                <div class="mods-sort-item" data-sort="updated">Aktualisiert</div>
+                            </div>
+                        </div>
+                        <div class="mods-sidebar-section" style="margin-top:auto; padding-top:20px; border-top:1px solid var(--border);">
+                            <button class="mods-installed-toggle" id="modsInstalledToggle" onclick="toggleInstalledView()">
+                                <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor;flex-shrink:0"><path d="M9 16.2l-3.5-3.5-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg>
+                                Installierte Mods
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mods-main">
+                        <div class="mods-topbar">
+                            <div class="mods-topbar-row">
+                                <button onclick="showScreen('instances')" style="
+                                    background:var(--surface);border:1px solid var(--border);
+                                    border-radius:10px;color:#888;width:36px;height:36px;
+                                    display:flex;align-items:center;justify-content:center;
+                                    cursor:pointer;flex-shrink:0;font-size:18px;
+                                    transition:all 0.2s ease;
+                                " onmouseenter="this.style.color='white';this.style.background='rgba(255,255,255,0.08)'"
+                                   onmouseleave="this.style.color='#888';this.style.background='var(--surface)'"
+                                   title="Zurück zu Instanzen">←</button>
+                                <div class="mods-topbar-title">
+                                    <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:var(--accent);flex-shrink:0"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5A2.5 2.5 0 0 0 10.5 1 2.5 2.5 0 0 0 8 3.5V5H4a2 2 0 0 0-2 2v3.8h1.5a2.5 2.5 0 0 1 0 5H2V19a2 2 0 0 0 2 2h3.8v-1.5a2.5 2.5 0 0 1 5 0V21H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg>
+                                    <span id="modsBrowseTitle">MODS DURCHSUCHEN</span>
+                                </div>
+                                <div class="mods-search-wrap">
+                                    <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#555;flex-shrink:0"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                                    <input class="mods-search-input" id="modsSearchInput" placeholder="Mods suchen..." onkeydown="if(event.key==='Enter')doModSearch()">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mods-active-tags" id="modsActiveTags"></div>
+
+                        <div class="mods-list-wrap" id="modsListWrap">
+                            <div class="mods-empty">
+                                <svg viewBox="0 0 24 24"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5A2.5 2.5 0 0 0 10.5 1 2.5 2.5 0 0 0 8 3.5V5H4a2 2 0 0 0-2 2v3.8h1.5a2.5 2.5 0 0 1 0 5H2V19a2 2 0 0 0 2 2h3.8v-1.5a2.5 2.5 0 0 1 5 0V21H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg>
+                                <p>Version auswählen und Mods suchen</p>
+                            </div>
+                        </div>
+
+                        <div class="mods-pagination hidden" id="modsPagination">
+                            <span class="mods-page-info">Seite <span id="modsPageNum">1</span> von <span id="modsPageTotal">1</span></span>
+                            <button class="mods-page-btn" id="modsPrevBtn" onclick="modsChangePage(-1)" title="Vorherige Seite">&#8592;</button>
+                            <button class="mods-page-btn" id="modsNextBtn" onclick="modsChangePage(1)" title="Nächste Seite">&#8594;</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="settingsScreen" class="screen">
+                <div class="settings-screen">
+                    <div class="settings-header">
+                        <div class="settings-title">Einstellungen</div>
+                    </div>
+                    
+                    <div class="settings-tab-nav">
+                        <button class="settings-tab-btn active" onclick="switchSettingsTab('themes', this)">Themes</button>
+                        <button class="settings-tab-btn" onclick="switchSettingsTab('memory', this)">Memory</button>
+                    </div>
+
+                    <div id="settingsTab-themes" class="settings-content-tab active">
+                        <div class="themes-grid">
+                            <div class="theme-card active-theme" data-theme="default" onclick="applyTheme('default', this)">
+                                <div class="theme-card-top">
+                                    <div class="theme-card-name">Shadow Purple</div>
+                                    <div class="theme-card-check">✓</div>
+                                </div>
+                                <div class="theme-preview-bar"><span></span><span></span><span></span></div>
+                                <div class="theme-preview-mini">
+                                    <div class="theme-mini-btn filled">SPIELEN</div>
+                                    <div class="theme-mini-btn outline">SKINS</div>
+                                </div>
+                            </div>
+                            <div class="theme-card" data-theme="emerald" onclick="applyTheme('emerald', this)">
+                                <div class="theme-card-top">
+                                    <div class="theme-card-name">Emerald</div>
+                                    <div class="theme-card-check"></div>
+                                </div>
+                                <div class="theme-preview-bar"><span></span><span></span><span></span></div>
+                                <div class="theme-preview-mini">
+                                    <div class="theme-mini-btn filled">SPIELEN</div>
+                                    <div class="theme-mini-btn outline">SKINS</div>
+                                </div>
+                            </div>
+                            <div class="theme-card" data-theme="crimson" onclick="applyTheme('crimson', this)">
+                                <div class="theme-card-top">
+                                    <div class="theme-card-name">Crimson</div>
+                                    <div class="theme-card-check"></div>
+                                </div>
+                                <div class="theme-preview-bar"><span></span><span></span><span></span></div>
+                                <div class="theme-preview-mini">
+                                    <div class="theme-mini-btn filled">SPIELEN</div>
+                                    <div class="theme-mini-btn outline">SKINS</div>
+                                </div>
+                            </div>
+                            <div class="theme-card" data-theme="gold" onclick="applyTheme('gold', this)">
+                                <div class="theme-card-top">
+                                    <div class="theme-card-name">Goldfire</div>
+                                    <div class="theme-card-check"></div>
+                                </div>
+                                <div class="theme-preview-bar"><span></span><span></span><span></span></div>
+                                <div class="theme-preview-mini">
+                                    <div class="theme-mini-btn filled">SPIELEN</div>
+                                    <div class="theme-mini-btn outline">SKINS</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="settingsTab-memory" class="settings-content-tab">
+                        <div class="settings-panel">
+                            <div class="ram-label-row">
+                                <div class="ram-label">Zugewiesener RAM</div>
+                                <div class="ram-value" id="ramDisplay">4<span>GB</span></div>
+                            </div>
+                            <div class="ram-slider-wrap">
+                                <input type="range" class="ram-slider" id="ramSlider" min="2" max="16" step="1" value="4" oninput="updateRam(this.value)">
+                            </div>
+                            <div class="ram-ticks">
+                                <span>2</span><span>4</span><span>6</span><span>8</span><span>10</span><span>12</span><span>14</span><span>16</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require("electron");
+
+        const screens = {
+            login: document.getElementById("loginScreen"),
+            loading: document.getElementById("loadingScreen"),
+            menu: document.getElementById("menuScreen"),
+            instances: document.getElementById("instancesScreen"),
+            skin: document.getElementById("skinScreen"),
+            cape: document.getElementById("capeScreen"),
+            mods: document.getElementById("modsScreen"),
+            settings: document.getElementById("settingsScreen")
+        };
+
+        const sidebar = document.getElementById("sidebar");
+        const playerBox = document.getElementById("playerBox");
+
+        let sessionData = null;
+        let currentType = "vanilla";
+        let selectedVersion = "1.21.1";
+
+        async function refreshPlayerHead() {
+            if (!sessionData || !sessionData.access_token) return;
+            const el = document.getElementById("playerHead");
+            try {
+                const res = await fetch("https://api.minecraftservices.com/minecraft/profile", {
+                    headers: { "Authorization": `Bearer ${sessionData.access_token}` }
+                });
+                if (!res.ok) throw new Error(res.status);
+                const data = await res.json();
+                const activeSkin = (data.skins || []).find(s => s.state?.toUpperCase() === "ACTIVE") || (data.skins || [])[0];
+                if (!activeSkin || !activeSkin.url) throw new Error("Kein Skin");
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement("canvas");
+                        canvas.width = 38; canvas.height = 38;
+                        const ctx = canvas.getContext("2d");
+                        ctx.imageSmoothingEnabled = false;
+                        ctx.drawImage(img, 8, 8, 8, 8, 0, 0, 38, 38);
+                        ctx.drawImage(img, 40, 8, 8, 8, 0, 0, 38, 38);
+                        el.src = canvas.toDataURL("image/png");
+                    } catch(e) { setPlayerHeadFallback(el); }
+                };
+                img.onerror = () => setPlayerHeadFallback(el);
+                img.src = activeSkin.url;
+            } catch(e) {
+                console.warn("[SKIN HEAD] Fallback:", e.message);
+                setPlayerHeadFallback(el);
+            }
+        }
+
+        function setPlayerHeadFallback(el) {
+            if (!sessionData) return;
+            el.onerror = function() {
+                this.onerror = null;
+                this.src = `https://minotar.net/helm/${sessionData.name}/38`;
+            };
+            el.src = `https://mc-heads.net/avatar/${sessionData.uuid}/38`;
+        }
+
+        const versionList = ["1.21.11", "1.21.10", "1.21.9", "1.21.8", "1.21.7", "1.21.6", "1.21.5", "1.21.4", "1.21.3", "1.21.2", "1.21.1", "1.21", "1.20.6", "1.20.5", "1.20.4", "1.20.3", "1.20.2", "1.20.1"];
+
+        function showScreen(key) {
+            Object.keys(screens).forEach(k => screens[k].classList.remove("active"));
+            screens[key].classList.add("active");
+
+            const isLoggedOut = (key === 'login' || key === 'loading');
+            sidebar.classList.toggle("active", !isLoggedOut);
+            playerBox.style.display = isLoggedOut ? "none" : "flex";
+
+            const gearBtnEl = document.getElementById("gearBtn");
+            gearBtnEl.style.display = isLoggedOut ? 'none' : 'flex';
+
+            document.getElementById("homeBtn").classList.toggle("active-nav", key === 'menu');
+            document.getElementById("instancesBtn").classList.toggle("active-nav", key === 'instances');
+            document.getElementById("skinBtn").classList.toggle("active-nav", key === 'skin');
+            document.getElementById("capeBtn").classList.toggle("active-nav", key === 'cape');
+        }
+
+        function setProgress(message, percent) {
+            const bar = document.getElementById("installBar");
+            const label = document.getElementById("installLabel");
+            const fill = document.getElementById("installFill");
+            const pct = document.getElementById("installPercent");
+            bar.style.display = "block";
+            label.innerText = message;
+            fill.style.width = percent + "%";
+            pct.innerText = percent + "%";
+        }
+
+        function hideProgress() {
+            document.getElementById("installBar").style.display = "none";
+            document.getElementById("installFill").style.width = "0%";
+            document.getElementById("installPercent").innerText = "0%";
+        }
+
+        function renderVersions() {
+            const grid = document.getElementById("versionGrid");
+            grid.innerHTML = "";
+            const list = versionList;
+            list.forEach(v => {
+                const wrap = document.createElement("div");
+                wrap.className = "instance-card-wrap";
+                wrap.style.position = "relative";
+
+                const card = document.createElement("div");
+                card.className = `instance-card ${v === selectedVersion ? 'active' : ''}`;
+                card.innerHTML = `
+                    <div style="font-family:'Rajdhani',sans-serif; font-size: 22px; font-weight: 700; letter-spacing:1px;">${v}</div>
+                    <div style="font-size: 10px; color: var(--text-dim); margin-top: 5px; letter-spacing:1.5px; font-family:'Rajdhani',sans-serif;">${currentType.toUpperCase()}</div>
+                `;
+                card.onclick = () => { selectedVersion = v; renderVersions(); };
+                wrap.appendChild(card);
+
+                if (currentType === "fabric") {
+                    const dots = document.createElement("button");
+                    dots.title = "Mods verwalten";
+                    dots.style.cssText = `
+                        position:absolute;top:8px;right:8px;width:26px;height:26px;
+                        border-radius:7px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.1);
+                        color:#aaa;font-size:15px;cursor:pointer;display:none;
+                        align-items:center;justify-content:center;z-index:10;
+                        transition:all 0.15s ease;line-height:1;
+                    `;
+                    dots.innerHTML = "⋯";
+                    dots.onmouseenter = () => { dots.style.background = "var(--accent)"; dots.style.color = "white"; };
+                    dots.onmouseleave = () => { dots.style.background = "rgba(0,0,0,0.5)"; dots.style.color = "#aaa"; };
+                    dots.onclick = (e) => { e.stopPropagation(); openModsForVersion(v); };
+                    wrap.onmouseenter = () => dots.style.display = "flex";
+                    wrap.onmouseleave = () => dots.style.display = "none";
+                    wrap.appendChild(dots);
+                }
+
+                grid.appendChild(wrap);
+            });
+        }
+
+        function openModsForVersion(version) {
+            selectedVersion = version;
+            initModsScreen();
+            showScreen('mods');
+        }
+
+        document.getElementById("homeBtn").onclick = () => showScreen('menu');
+        document.getElementById("instancesBtn").onclick = () => { renderVersions(); showScreen('instances'); };
+        document.getElementById("skinBtn").onclick = () => showScreen('skin');
+        document.getElementById("capeBtn").onclick = () => { loadMyCurrentCape(); showScreen('cape'); };
+
+        function switchSettingsTab(tabId, btnElement) {
+            document.querySelectorAll('.settings-tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.settings-content-tab').forEach(t => t.classList.remove('active'));
+            
+            btnElement.classList.add('active');
+            document.getElementById('settingsTab-' + tabId).classList.add('active');
+        }
+
+        const THEMES = ['default', 'emerald', 'crimson', 'gold'];
+        let currentTheme = localStorage.getItem('shadow-theme') || 'default';
+
+        function applyTheme(theme, clickedCard) {
+            THEMES.forEach(t => document.body.classList.remove('theme-' + t));
+            if (theme !== 'default') document.body.classList.add('theme-' + theme);
+            currentTheme = theme;
+            try { localStorage.setItem('shadow-theme', theme); } catch(e) {}
+
+            document.querySelectorAll('.theme-card').forEach(card => {
+                const isActive = card.dataset.theme === theme;
+                card.classList.toggle('active-theme', isActive);
+                const check = card.querySelector('.theme-card-check');
+                if (check) check.textContent = isActive ? '✓' : '';
+            });
+        }
+
+        applyTheme(currentTheme, null);
+
+        let capeCache = { data: null, ts: 0 };
+        async function loadMyCurrentCape(forceRefresh = false) {
+            if (!sessionData) return;
+            const noPreview = document.getElementById("capeNoPreview");
+            const preview = document.getElementById("capePreview");
+            const now = Date.now();
+            if (!forceRefresh && capeCache.data && (now - capeCache.ts) < 60000) {
+                const { capes, activeCapeId, playerName } = capeCache.data;
+                preview.src = `https://visage.surgeplay.com/full/300/${playerName}`;
+                preview.style.display = '';
+                if (noPreview) noPreview.style.display = 'none';
+                document.getElementById("capePreviewName").innerText = playerName;
+                renderCapeList(capes, activeCapeId);
+                return;
+            }
+            if (noPreview) { noPreview.style.display = 'flex'; noPreview.querySelector('span').innerText = "Lade Capes..."; }
+            preview.style.display = 'none';
+            try {
+                const res = await fetch("https://api.minecraftservices.com/minecraft/profile", {
+                    headers: { "Authorization": `Bearer ${sessionData.access_token}` }
+                });
+                if (res.status === 429) {
+                    if (capeCache.data) {
+                        const { capes, activeCapeId, playerName } = capeCache.data;
+                        preview.src = `https://visage.surgeplay.com/full/300/${playerName}`;
+                        preview.style.display = '';
+                        if (noPreview) noPreview.style.display = 'none';
+                        document.getElementById("capePreviewName").innerText = playerName;
+                        renderCapeList(capes, activeCapeId);
+                        document.getElementById("capeMcStatus").textContent = "⚠ API Limit – gecachte Daten";
+                        document.getElementById("capeMcStatus").className = "skin-mc-status";
+                    } else {
+                        if (noPreview) noPreview.querySelector('span').innerText = "⚠ Zu viele Anfragen – kurz warten";
+                    }
+                    return;
+                }
+                if (!res.ok) throw new Error("API Fehler " + res.status);
+                const data = await res.json();
+                const capes = data.capes || [];
+                const activeCape = capes.find(c => c.state?.toLowerCase() === "active");
+                const activeCapeId = activeCape ? activeCape.id : null;
+                capeCache = { data: { capes, activeCapeId, playerName: sessionData.name }, ts: Date.now() };
+                preview.style.opacity = '0';
+                preview.src = `https://visage.surgeplay.com/full/300/${sessionData.name}`;
+                preview.style.display = '';
+                if (noPreview) noPreview.style.display = 'none';
+                preview.onload = () => { preview.style.opacity = '1'; };
+                document.getElementById("capePreviewName").innerText = sessionData.name;
+                renderCapeList(capes, activeCapeId);
+            } catch(e) {
+                console.error("[CAPE]", e);
+                if (noPreview) noPreview.querySelector('span').innerText = "Fehler: " + e.message;
+            }
+        }
+
+        const CAPE_NAMES = {
+            "MinecraftMC": "Minecon 2011", "Minecon2012": "Minecon 2012",
+            "Minecon2013": "Minecon 2013", "Minecon2015": "Minecon 2015",
+            "Minecon2016": "Minecon 2016", "MCC15Fan": "Minecon Fan 2021",
+            "MCC16Fan": "Minecon Fan 2022", "Vanilla": "Vanilla",
+            "Mojang": "Mojang", "Moderator": "Moderator",
+            "Translator": "Translator", "Mapmaker": "Mapmaker",
+            "MojangLegacy": "Mojang Legacy", "Migrator": "Migrator",
+            "Prismarine": "Prismarine", "Cherry": "Cherry Blossom",
+        };
+
+        function getCapeDisplayName(cape) {
+            const urlPart = cape.url ? cape.url.split('/').pop() : '';
+            return CAPE_NAMES[cape.alias] || CAPE_NAMES[urlPart] || cape.alias || "Cape";
+        }
+
+        async function equipCape(capeId) {
+            const statusEl = document.getElementById("capeMcStatus");
+            statusEl.textContent = "⏳ Wird aktiviert...";
+            statusEl.className = "skin-mc-status";
+            try {
+                const res = await fetch(`https://api.minecraftservices.com/minecraft/profile/capes/active`, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": `Bearer ${sessionData.access_token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ capeId })
+                });
+                if (res.ok) {
+                    statusEl.textContent = "✓ Cape aktiviert!";
+                    statusEl.className = "skin-mc-status success";
+                    capeCache = { data: null, ts: 0 };
+                    setTimeout(() => loadMyCurrentCape(true), 1500);
+                    setTimeout(() => { statusEl.textContent = ''; statusEl.className = 'skin-mc-status'; }, 4000);
+                } else {
+                    const err = await res.text();
+                    statusEl.textContent = "✗ Fehler: " + err;
+                    statusEl.className = "skin-mc-status error";
+                }
+            } catch(e) {
+                statusEl.textContent = "✗ " + e.message;
+                statusEl.className = "skin-mc-status error";
+            }
+        }
+
+        async function removeCape() {
+            const statusEl = document.getElementById("capeMcStatus");
+            statusEl.textContent = "⏳ Wird entfernt...";
+            statusEl.className = "skin-mc-status";
+            try {
+                await fetch("https://api.minecraftservices.com/minecraft/profile/capes/active", {
+                    method: "DELETE",
+                    headers: { "Authorization": `Bearer ${sessionData.access_token}` }
+                });
+                statusEl.textContent = "✓ Cape entfernt";
+                statusEl.className = "skin-mc-status success";
+                capeCache = { data: null, ts: 0 };
+                setTimeout(() => loadMyCurrentCape(true), 1500);
+                setTimeout(() => { statusEl.textContent = ''; statusEl.className = 'skin-mc-status'; }, 4000);
+            } catch(e) {
+                statusEl.textContent = "✗ " + e.message;
+                statusEl.className = "skin-mc-status error";
+            }
+        }
+
+        function renderCapeList(capes, activeCapeId) {
+            const wrap = document.getElementById("capeListWrap");
+            const empty = document.getElementById("capeListEmpty");
+            wrap.querySelectorAll('.cape-entry').forEach(e => e.remove());
+
+            if (!capes || capes.length === 0) {
+                empty.style.display = 'flex';
+                empty.querySelector('p').innerText = 'Keine Capes auf diesem Account';
+                return;
+            }
+            empty.style.display = 'none';
+
+            capes.forEach(cape => {
+                const isActive = cape.id === activeCapeId || cape.state?.toLowerCase() === "active";
+                const displayName = getCapeDisplayName(cape);
+                const entry = document.createElement('div');
+                entry.className = 'cape-entry';
+                entry.style.cssText = `display:flex;align-items:center;gap:14px;padding:14px 16px;
+                    background:${isActive ? 'rgba(167,139,250,0.08)' : 'rgba(255,255,255,0.03)'};
+                    border:1px solid ${isActive ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.07)'};
+                    border-radius:12px;cursor:pointer;transition:all 0.2s`;
+                entry.innerHTML = `
+                    <div style="width:24px;height:48px;overflow:hidden;image-rendering:pixelated;border-radius:3px;background:#0a0a16;flex-shrink:0;position:relative">
+                        <img src="${cape.url}" style="width:96px;height:auto;image-rendering:pixelated;position:absolute;left:-24px;top:0" onerror="this.parentElement.style.background='#1a1a2e'">
+                    </div>
+                    <div style="flex:1">
+                        <div style="font-family:'Rajdhani',sans-serif;font-weight:700;font-size:14px;letter-spacing:1px;color:${isActive ? '#a78bfa' : 'white'}">${displayName}</div>
+                        <div style="font-size:11px;color:#6b7280;margin-top:2px">${isActive ? '● Aktiv' : '○ Inaktiv'}</div>
+                    </div>
+                    <button style="padding:6px 14px;background:${isActive ? 'rgba(244,63,94,0.1)' : 'rgba(167,139,250,0.12)'};
+                        border:1px solid ${isActive ? 'rgba(244,63,94,0.3)' : 'rgba(167,139,250,0.3)'};
+                        border-radius:8px;color:${isActive ? '#f43f5e' : '#a78bfa'};
+                        font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px"
+                        onclick="event.stopPropagation();${isActive ? 'removeCape()' : `equipCape('${cape.id}')`}">
+                        ${isActive ? 'ENTFERNEN' : 'AKTIVIEREN'}
+                    </button>
+                `;
+                wrap.appendChild(entry);
+            });
+        }
+
+        function openCapeInfo(type) {
+            const { shell } = require('electron');
+            if (type === 'optifine') shell.openExternal('https://optifine.net/adloadx?f=cape');
+            if (type === 'minecon') shell.openExternal('https://minecraft.net/en-us/article/minecon-cape');
+        }
+
+        const BUILTIN_MOD_IDS = [
+            "AANobbMI", "gvQqBUqZ", "uXXizFIs", "NNAgCjsB", "51shyZVL", 
+            "H8CaAYZC", "P7dR8mSH", "9s6osm5g", "YL57xq9U"
+        ];
+
+        const MOD_CATEGORIES = [
+            { id: "adventure",      label: "Adventure",      icon: "⚔️" },
+            { id: "cursed",         label: "Cursed",         icon: "💀" },
+            { id: "decoration",     label: "Decoration",     icon: "🏠" },
+            { id: "economy",        label: "Economy",        icon: "💰" },
+            { id: "equipment",      label: "Equipment",      icon: "🛡️" },
+            { id: "food",           label: "Food",           icon: "🍎" },
+            { id: "game-mechanics", label: "Game Mechanics", icon: "⚙️" },
+            { id: "library",        label: "Library",        icon: "📚" },
+            { id: "magic",          label: "Magic",          icon: "✨" },
+            { id: "management",     label: "Management",     icon: "📋" },
+            { id: "mobs",           label: "Mobs",           icon: "🐉" },
+            { id: "optimization",   label: "Optimierung",    icon: "🚀" },
+            { id: "social",         label: "Social",         icon: "💬" },
+            { id: "storage",        label: "Storage",        icon: "📦" },
+            { id: "utility",        label: "Utility",        icon: "🔧" },
+            { id: "world-generation", label: "World Gen",    icon: "🌍" },
+        ];
+
+        let modsState = {
+            version: "",
+            category: "",
+            sort: "relevance",
+            query: "",
+            showInstalled: false,
+            results: [],
+            installedIds: [],
+            page: 1,
+            pageSize: 15,
+            totalHits: 0
+        };
+
+        function initModsScreen() {
+            const sel = document.getElementById("modVersionSelect");
+            sel.innerHTML = '<option value="">Wähle Version...</option>';
+            versionList.forEach(v => {
+                const o = document.createElement("option");
+                o.value = v; o.textContent = v;
+                if (v === selectedVersion) o.selected = true;
+                sel.appendChild(o);
+            });
+            if (selectedVersion) modsState.version = selectedVersion;
+
+            const catEl = document.getElementById("modCategories");
+            catEl.innerHTML = "";
+            MOD_CATEGORIES.forEach(cat => {
+                const el = document.createElement("div");
+                el.className = "mods-cat-item" + (modsState.category === cat.id ? " active" : "");
+                el.dataset.id = cat.id;
+                el.innerHTML = `<span class="mods-cat-icon">${cat.icon}</span>${cat.label}`;
+                el.onclick = () => toggleCategory(cat.id);
+                catEl.appendChild(el);
+            });
+
+            document.querySelectorAll(".mods-sort-item").forEach(el => {
+                el.classList.toggle("active", el.dataset.sort === modsState.sort);
+                el.onclick = () => {
+                    modsState.sort = el.dataset.sort;
+                    modsState.page = 1;
+                    document.querySelectorAll(".mods-sort-item").forEach(e => e.classList.remove("active"));
+                    el.classList.add("active");
+                    doModSearch();
+                };
+            });
+
+            sel.onchange = () => { modsState.version = sel.value; modsState.page = 1; doModSearch(); };
+            updateActiveTags();
+            if (modsState.version) doModSearch();
+        }
+
+        function toggleCategory(id) {
+            modsState.category = modsState.category === id ? "" : id;
+            modsState.page = 1;
+            document.querySelectorAll(".mods-cat-item").forEach(el => {
+                el.classList.toggle("active", el.dataset.id === modsState.category);
+            });
+            updateActiveTags();
+            doModSearch();
+        }
+
+        function clearModFilters() {
+            modsState.category = "";
+            modsState.query = "";
+            modsState.sort = "relevance";
+            modsState.showInstalled = false;
+            modsState.page = 1;
+            document.getElementById("modsSearchInput").value = "";
+            document.getElementById("modsInstalledToggle").classList.remove("active");
+            document.querySelectorAll(".mods-cat-item").forEach(el => el.classList.remove("active"));
+            document.querySelectorAll(".mods-sort-item").forEach(el => el.classList.toggle("active", el.dataset.sort === "relevance"));
+            updateActiveTags();
+            doModSearch();
+        }
+
+        function updateActiveTags() {
+            const wrap = document.getElementById("modsActiveTags");
+            wrap.innerHTML = "";
+            if (modsState.category) {
+                const cat = MOD_CATEGORIES.find(c => c.id === modsState.category);
+                addTag(wrap, cat.icon + " " + cat.label, () => toggleCategory(modsState.category));
+            }
+            if (modsState.query) {
+                addTag(wrap, "🔍 " + modsState.query, () => {
+                    modsState.query = "";
+                    document.getElementById("modsSearchInput").value = "";
+                    doModSearch();
+                });
+            }
+            if (modsState.version) {
+                addTag(wrap, "MC " + modsState.version, null);
+            }
+        }
+
+        function addTag(wrap, text, onRemove) {
+            const pill = document.createElement("div");
+            pill.className = "mods-tag-pill";
+            pill.innerHTML = `${text}${onRemove ? '<button onclick="void 0">✕</button>' : ''}`;
+            if (onRemove) pill.querySelector("button").onclick = onRemove;
+            wrap.appendChild(pill);
+        }
+
+        function toggleInstalledView() {
+            modsState.showInstalled = !modsState.showInstalled;
+            document.getElementById("modsInstalledToggle").classList.toggle("active", modsState.showInstalled);
+            document.getElementById("modsBrowseTitle").innerText = modsState.showInstalled ? "INSTALLIERTE MODS" : "MODS DURCHSUCHEN";
+            if (modsState.showInstalled) {
+                loadAndRenderInstalled();
+            } else {
+                doModSearch();
+            }
+        }
+
+        async function doModSearch() {
+            if (modsState.showInstalled) return;
+            if (!modsState.version) {
+                setModsContent(`<div class="mods-empty"><svg viewBox="0 0 24 24"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5A2.5 2.5 0 0 0 10.5 1 2.5 2.5 0 0 0 8 3.5V5H4a2 2 0 0 0-2 2v3.8h1.5a2.5 2.5 0 0 1 0 5H2V19a2 2 0 0 0 2 2h3.8v-1.5a2.5 2.5 0 0 1 5 0V21H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg><p>Bitte zuerst eine Version auswählen</p></div>`);
+                updatePagination(0);
+                return;
+            }
+
+            modsState.query = document.getElementById("modsSearchInput").value.trim();
+            updateActiveTags();
+            setModsContent(`<div class="mods-spinner"><div class="loader"></div></div>`);
+
+            try {
+                const offset = (modsState.page - 1) * modsState.pageSize;
+                const facets = [["project_type:mod"], [`versions:${modsState.version}`], ["categories:fabric"]];
+                if (modsState.category) facets.push([`categories:${modsState.category}`]);
+
+                const sortMap = { relevance: "relevance", downloads: "downloads", newest: "newest", updated: "updated" };
+                const url = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(modsState.query)}&facets=${encodeURIComponent(JSON.stringify(facets))}&index=${sortMap[modsState.sort]}&limit=${modsState.pageSize}&offset=${offset}`;
+
+                const res = await fetch(url);
+                const data = await res.json();
+                modsState.results = data.hits || [];
+                modsState.totalHits = data.total_hits || 0;
+                modsState.results = modsState.results.filter(m => !BUILTIN_MOD_IDS.includes(m.project_id));
+
+                await loadInstalledIds();
+                renderModRows(modsState.results);
+                updatePagination(modsState.totalHits);
+
+                document.getElementById("modsListWrap").scrollTop = 0;
+            } catch(e) {
+                setModsContent(`<div class="mods-empty"><p style="color:#ef4444">Fehler: ${e.message}</p></div>`);
+                updatePagination(0);
+            }
+        }
+
+        function updatePagination(totalHits) {
+            const pagination = document.getElementById("modsPagination");
+            const totalPages = Math.max(1, Math.ceil(totalHits / modsState.pageSize));
+            const currentPage = modsState.page;
+
+            if (totalHits <= modsState.pageSize || modsState.showInstalled) {
+                pagination.classList.add("hidden");
+                return;
+            }
+
+            pagination.classList.remove("hidden");
+            document.getElementById("modsPageNum").innerText = currentPage;
+            document.getElementById("modsPageTotal").innerText = totalPages;
+            document.getElementById("modsPrevBtn").disabled = currentPage <= 1;
+            document.getElementById("modsNextBtn").disabled = currentPage >= totalPages;
+        }
+
+        function modsChangePage(delta) {
+            const totalPages = Math.max(1, Math.ceil(modsState.totalHits / modsState.pageSize));
+            const newPage = modsState.page + delta;
+            if (newPage < 1 || newPage > totalPages) return;
+            modsState.page = newPage;
+            doModSearch();
+        }
+
+        async function loadInstalledIds() {
+            try {
+                const mods = await ipcRenderer.invoke("get-installed-mods", { version: modsState.version });
+                modsState.installedIds = (mods || []).map(m => m.filename);
+            } catch(e) { modsState.installedIds = []; }
+        }
+
+        function renderModRows(hits) {
+            if (!hits.length) {
+                setModsContent(`<div class="mods-empty"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><p>Keine Mods gefunden</p></div>`);
+                return;
+            }
+            const wrap = document.getElementById("modsListWrap");
+            wrap.innerHTML = "";
+            hits.forEach(mod => {
+                const dl = mod.downloads >= 1000000 ? (mod.downloads/1e6).toFixed(1)+"M" : mod.downloads >= 1000 ? Math.floor(mod.downloads/1000)+"K" : mod.downloads;
+                const row = document.createElement("div");
+                row.className = "mod-row";
+                row.dataset.projectId = mod.project_id;
+
+                const cats = (mod.categories || []).slice(0,3).map(c =>
+                    `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.2);color:#a78bfa;font-weight:600">${c}</span>`
+                ).join(" ");
+
+                const versions = (mod.versions || []).slice(-5).join(", ");
+
+                row.innerHTML = `
+                    <img class="mod-row-icon" src="${mod.icon_url||''}" onerror="this.style.background='rgba(167,139,250,0.08)'">
+                    <div class="mod-row-body">
+                        <div class="mod-row-name">
+                            ${mod.title}
+                            <span class="mod-row-author">von ${mod.author}</span>
+                        </div>
+                        <div class="mod-row-desc">${mod.description}</div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap">
+                            ${cats}
+                            ${versions ? `<span style="font-size:10px;color:#3a3a5a">Versionen: ${versions}</span>` : ""}
+                        </div>
+                    </div>
+                    <div class="mod-row-meta">
+                        <div class="mod-row-stat">
+                            <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                            ${dl}
+                        </div>
+                        <button class="mod-install-btn" data-pid="${mod.project_id}" onclick="installModRow('${mod.project_id}','${mod.title.replace(/'/g,"\\'")}',this)">
+                            Installieren
+                        </button>
+                    </div>
+                `;
+                wrap.appendChild(row);
+            });
+        }
+
+        async function installModRow(projectId, modName, btn) {
+            btn.disabled = true;
+            btn.innerText = "⏳";
+            try {
+                const result = await ipcRenderer.invoke("install-mod", { projectId, modName, version: modsState.version });
+                if (result.success) {
+                    btn.classList.add("installed");
+                    btn.innerText = "✓ Installiert";
+                } else {
+                    btn.disabled = false;
+                    btn.innerText = "⚠ Nochmal";
+                }
+            } catch(e) {
+                btn.disabled = false;
+                btn.innerText = "⚠ Nochmal";
+            }
+        }
+
+        async function loadAndRenderInstalled() {
+            setModsContent(`<div class="mods-spinner"><div class="loader"></div></div>`);
+            if (!modsState.version) {
+                setModsContent(`<div class="mods-empty"><p>Bitte zuerst eine Version auswählen</p></div>`);
+                return;
+            }
+            try {
+                const mods = await ipcRenderer.invoke("get-installed-mods", { version: modsState.version });
+                if (!mods || !mods.length) {
+                    setModsContent(`<div class="mods-empty"><svg viewBox="0 0 24 24"><path d="M20.5 11H19V7a2 2 0 0 0-2-2h-4V3.5A2.5 2.5 0 0 0 10.5 1 2.5 2.5 0 0 0 8 3.5V5H4a2 2 0 0 0-2 2v3.8h1.5a2.5 2.5 0 0 1 0 5H2V19a2 2 0 0 0 2 2h3.8v-1.5a2.5 2.5 0 0 1 5 0V21H17a2 2 0 0 0 2-2v-4h1.5a2.5 2.5 0 0 0 0-5z"/></svg><p>Keine Mods installiert für MC ${modsState.version}</p></div>`);
+                    return;
+                }
+                const wrap = document.getElementById("modsListWrap");
+                wrap.innerHTML = "";
+                mods.forEach(mod => {
+                    const row = document.createElement("div");
+                    row.className = "mod-row";
+                    row.innerHTML = `
+                        <div class="mod-row-icon" style="background:rgba(167,139,250,0.1);display:flex;align-items:center;justify-content:center;font-size:26px">🧩</div>
+                        <div class="mod-row-body">
+                            <div class="mod-row-name">${mod.filename}</div>
+                            <div class="mod-row-desc">${(mod.size/1024).toFixed(1)} KB</div>
+                        </div>
+                        <button class="mod-delete-btn" onclick="deleteModRow('${mod.filename}', this.closest('.mod-row'))">Löschen</button>
+                    `;
+                    wrap.appendChild(row);
+                });
+            } catch(e) {
+                setModsContent(`<div class="mods-empty"><p style="color:#ef4444">Fehler: ${e.message}</p></div>`);
+            }
+        }
+
+        async function deleteModRow(filename, rowEl) {
+            try {
+                const result = await ipcRenderer.invoke("delete-mod", { version: modsState.version, filename });
+                if (result.success) {
+                    rowEl.style.opacity = "0";
+                    rowEl.style.transition = "opacity 0.3s";
+                    setTimeout(() => rowEl.remove(), 300);
+                }
+            } catch(e) {}
+        }
+
+        function setModsContent(html) {
+            document.getElementById("modsListWrap").innerHTML = html;
+        }
+
+        document.querySelectorAll(".mode-btn").forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                currentType = btn.dataset.type;
+                renderVersions();
+            };
+        });
+
+        document.getElementById("loginBtn").onclick = async () => {
+            showScreen('loading');
+            const result = await ipcRenderer.invoke("login");
+            if(result.success) {
+                sessionData = result;
+                document.getElementById("playerName").innerText = result.name;
+                refreshPlayerHead();
+                showScreen('menu');
+            } else {
+                showScreen('login');
+            }
+        };
+
+        document.getElementById("logoutBtn").onclick = async () => {
+            await ipcRenderer.invoke("logout");
+            sessionData = null;
+            document.getElementById("playerName").innerText = "---";
+            document.getElementById("playerHead").src = "";
+            showScreen('login');
+        };
+
+        let savedSkins = JSON.parse(localStorage.getItem('shadowSkins') || '[]');
+        let currentSkinUrl = null;
+        let currentSkinData = null;
+        let currentVariant = 'classic';
+        let currentSkinTextureUrl = null;
+
+        function isValidMCName(name) {
+            return name && /^[a-zA-Z0-9_]{3,16}$/.test(name);
+        }
+
+        function get3DPreviewUrl(name, dataUrl) {
+            if (name && name.length > 1) return `https://visage.surgeplay.com/full/300/${encodeURIComponent(name)}`;
+            if (dataUrl) return dataUrl;
+            return `https://visage.surgeplay.com/full/300/Steve`;
+        }
+
+        function get3DCardUrl(name, data) {
+            if (name && name.length > 1) return `https://visage.surgeplay.com/bust/100/${encodeURIComponent(name)}`;
+            if (data) {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 64; canvas.height = 64;
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    img.src = data;
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(img, 8, 8, 8, 8, 0, 0, 64, 64);
+                    ctx.drawImage(img, 40, 8, 8, 8, 0, 0, 64, 64);
+                    return canvas.toDataURL('image/png');
+                } catch(e) { return data; }
+            }
+            return `https://visage.surgeplay.com/bust/100/Steve`;
+        }
+
+        function extractFaceAsync(skinDataUrl) {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 64; canvas.height = 64;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = false;
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        ctx.drawImage(img, 8, 8, 8, 8, 0, 0, 64, 64);
+                        ctx.drawImage(img, 40, 8, 8, 8, 0, 0, 64, 64);
+                        resolve(canvas.toDataURL('image/png'));
+                    } catch(e) { resolve(skinDataUrl); }
+                };
+                img.onerror = () => resolve(skinDataUrl);
+                img.src = skinDataUrl;
+            });
+        }
+
+        function setVariant(v) {
+            currentVariant = v;
+            document.getElementById('variantClassic').classList.toggle('active', v === 'classic');
+            document.getElementById('variantSlim').classList.toggle('active', v === 'slim');
+        }
+
+        function saveSkinStorage() {
+            localStorage.setItem('shadowSkins', JSON.stringify(savedSkins));
+        }
+
+        function setSkinPreview(url, name, type, dataUrl) {
+            const previewImg = document.getElementById("skinPreview");
+            const newSrc = get3DPreviewUrl(name, dataUrl);
+            previewImg.style.opacity = '0';
+            setTimeout(() => {
+                previewImg.src = newSrc;
+                previewImg.onload = () => { previewImg.style.opacity = '1'; };
+                previewImg.onerror = () => { previewImg.style.opacity = '1'; };
+            }, 200);
+            document.getElementById("skinPreviewName").innerText = name || '';
+            currentSkinUrl = url;
+            currentSkinData = dataUrl || null;
+            currentSkinName = name;
+            currentSkinType = type;
+        }
+
+        let currentSkinName = 'Steve';
+        let currentSkinType = 'Spieler';
+
+        function renderSkinList() {
+            const list = document.getElementById("skinList");
+            const empty = document.getElementById("skinListEmpty");
+            document.getElementById("skinListCount").innerText = savedSkins.length;
+            list.querySelectorAll('.skin-entry').forEach(e => e.remove());
+            if (savedSkins.length === 0) {
+                empty.style.display = 'flex';
+                return;
+            }
+            empty.style.display = 'none';
+            savedSkins.forEach((skin, i) => {
+                const entry = document.createElement('div');
+                entry.className = 'skin-entry' + (currentSkinUrl === skin.url ? ' active-skin' : '');
+                const initialAvatarSrc = get3DCardUrl(skin.name, skin.data);
+                entry.innerHTML = `
+                    <img class="skin-entry-avatar" src="${initialAvatarSrc}" onerror="this.src='https://mc-heads.net/avatar/Steve'">
+                    <div class="skin-entry-info">
+                        <div class="skin-entry-name">${skin.name}</div>
+                        <div class="skin-entry-type">${skin.type}</div>
+                    </div>
+                    <button class="skin-entry-del" title="Löschen">✕</button>
+                `;
+                if (skin.data && !isValidMCName(skin.name)) {
+                    const avatarEl = entry.querySelector('.skin-entry-avatar');
+                    extractFaceAsync(skin.data).then(faceUrl => { avatarEl.src = faceUrl; });
+                }
+                entry.querySelector('.skin-entry-del').onclick = (e) => {
+                    e.stopPropagation();
+                    savedSkins.splice(i, 1);
+                    saveSkinStorage();
+                    renderSkinList();
+                };
+                entry.onclick = () => {
+                    currentSkinTextureUrl = skin.textureUrl || null;
+                    setSkinPreview(skin.url, skin.name, skin.type, skin.data || null);
+                    renderSkinList();
+                };
+                list.appendChild(entry);
+            });
+        }
+
+        document.getElementById("applySkinBtn").onclick = async () => {
+            const val = document.getElementById("skinInput").value.trim();
+            if (!val) return;
+            const btn = document.getElementById("applySkinBtn");
+            btn.disabled = true; btn.innerText = "⏳";
+            currentSkinTextureUrl = null;
+            try {
+                if (val.startsWith('http')) {
+                    currentSkinTextureUrl = val;
+                    setSkinPreview(val, val, 'URL');
+                } else {
+                    const uuidRes = await fetch(`https://api.mojang.com/users/profiles/minecraft/${val}`);
+                    const uuidData = await uuidRes.json();
+                    const profRes = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${uuidData.id}`);
+                    const prof = await profRes.json();
+                    const prop = prof.properties && prof.properties.find(p => p.name === "textures");
+                    if (prop) {
+                        const tex = JSON.parse(atob(prop.value));
+                        currentSkinTextureUrl = tex.textures && tex.textures.SKIN && tex.textures.SKIN.url;
+                    }
+                    setSkinPreview(`https://mc-heads.net/body/${val}`, val, 'Spieler');
+                }
+            } catch(e) {
+                setSkinPreview(`https://mc-heads.net/body/${val}`, val, 'Spieler');
+            }
+            document.getElementById("skinInput").value = '';
+            btn.disabled = false; btn.innerText = "→";
+        };
+        document.getElementById("skinInput").addEventListener("keydown", e => {
+            if (e.key === "Enter") document.getElementById("applySkinBtn").click();
+        });
+
+        document.getElementById("skinSaveBtn").onclick = () => {
+            if (!currentSkinUrl && !currentSkinData) return;
+            const isDup = savedSkins.find(s =>
+                (currentSkinData && s.data === currentSkinData) ||
+                (!currentSkinData && s.url === currentSkinUrl && s.type === currentSkinType)
+            );
+            if (isDup) return;
+            savedSkins.unshift({
+                url: currentSkinUrl || '',
+                data: currentSkinData || null,
+                textureUrl: currentSkinTextureUrl || null,
+                name: currentSkinName,
+                type: currentSkinType,
+                savedAt: Date.now()
+            });
+            saveSkinStorage();
+            renderSkinList();
+            const btn = document.getElementById("skinSaveBtn");
+            btn.style.background = 'rgba(167,139,250,0.3)';
+            setTimeout(() => btn.style.background = '', 400);
+        };
+
+        const dropZone = document.getElementById("skinDropZone");
+        const fileInput = document.getElementById("skinFileInput");
+
+        dropZone.onclick = () => fileInput.click();
+        dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.classList.add("dragging"); });
+        dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragging"));
+        dropZone.addEventListener("drop", e => {
+            e.preventDefault();
+            dropZone.classList.remove("dragging");
+            const file = e.dataTransfer.files[0];
+            if (file && file.type === 'image/png') loadSkinFile(file);
+        });
+        fileInput.onchange = () => {
+            if (fileInput.files[0]) loadSkinFile(fileInput.files[0]);
+        };
+
+        function loadSkinFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                setSkinPreview(dataUrl, file.name.replace('.png',''), 'PNG Datei', dataUrl);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        document.getElementById("skinApplyMcBtn").onclick = async () => {
+            if (!sessionData) {
+                setMcStatus("⚠ Bitte zuerst anmelden!", "error"); return;
+            }
+            if (!currentSkinUrl && !currentSkinData) {
+                setMcStatus("⚠ Kein Skin ausgewählt!", "error"); return;
+            }
+            const btn = document.getElementById("skinApplyMcBtn");
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span> Wird angewendet...';
+            setMcStatus("", "");
+            try {
+                let finalTextureUrl = currentSkinTextureUrl || null;
+
+                if (!currentSkinData && !finalTextureUrl && currentSkinName) {
+                    setMcStatus("⏳ Löse Skin-URL auf...", "");
+                    try {
+                        const uuidRes = await fetch(`https://api.mojang.com/users/profiles/minecraft/${currentSkinName}`);
+                        const uuidData = await uuidRes.json();
+                        const profRes = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${uuidData.id}`);
+                        const prof = await profRes.json();
+                        const prop = prof.properties && prof.properties.find(p => p.name === "textures");
+                        if (prop) {
+                            const tex = JSON.parse(atob(prop.value));
+                            finalTextureUrl = tex.textures.SKIN && tex.textures.SKIN.url;
+                            currentSkinTextureUrl = finalTextureUrl;
+                        }
+                    } catch(e) { console.warn("[SKIN] URL-Auflösung fehlgeschlagen:", e); }
+                }
+
+                const result = await ipcRenderer.invoke("change-skin", {
+                    accessToken: sessionData.access_token,
+                    skinData: (currentSkinData && !finalTextureUrl) ? currentSkinData : null,
+                    skinUrl: finalTextureUrl ? finalTextureUrl.replace('http://', 'https://') : null,
+                    playerName: null,
+                    variant: currentVariant
+                });
+                if (result.success) {
+                    setMcStatus("✓ Skin erfolgreich geändert!", "success");
+                    setTimeout(() => refreshPlayerHead(), 3000);
+                } else {
+                    setMcStatus("✗ Fehler: " + (result.error || "Unbekannt"), "error");
+                }
+            } catch(e) {
+                setMcStatus("✗ Fehler: " + e.message, "error");
+            }
+            btn.disabled = false;
+            btn.innerHTML = '<span>🎮</span> Auf Minecraft anwenden';
+        };
+
+        function setMcStatus(msg, type) {
+            const el = document.getElementById("skinMcStatus");
+            el.textContent = msg;
+            el.className = "skin-mc-status" + (type ? " " + type : "");
+        }
+
+        renderSkinList();
+
+        document.getElementById("playBtn").onclick = async () => {
+            if(!sessionData) return;
+
+            const playBtn = document.getElementById("playBtn");
+            const errorMsg = document.getElementById("playErrorMsg");
+            errorMsg.style.display = "none";
+            let fabricVersionId = undefined;
+
+            if(currentType === "forge") {
+                errorMsg.style.display = "block";
+                errorMsg.innerText = "Forge wird bald unterstützt!";
+                return;
+            }
+
+            if(currentType === "fabric") {
+                playBtn.disabled = true;
+                setProgress("Starte Fabric Installation...", 0);
+
+                const result = await ipcRenderer.invoke("install-fabric", { version: selectedVersion });
+
+                if(!result.success) {
+                    hideProgress();
+                    playBtn.disabled = false;
+                    errorMsg.style.display = "block";
+                    errorMsg.innerText = "Fabric Fehler: " + result.error;
+                    return;
+                }
+
+                fabricVersionId = result.versionId;
+                playBtn.disabled = false;
+            }
+
+            setProgress("Starte Minecraft...", 0);
+            playBtn.disabled = true;
+
+            ipcRenderer.invoke("play", {
+                accessToken: sessionData.access_token,
+                uuid: sessionData.uuid,
+                username: sessionData.name,
+                version: selectedVersion,
+                type: currentType,
+                fabricVersionId
+            });
+        };
+
+        ipcRenderer.on("install-progress", (event, { message, percent }) => {
+            setProgress(message, percent);
+        });
+
+        ipcRenderer.on("mc-download-progress", (event, { message, percent }) => {
+            setProgress(message, percent);
+        });
+
+        ipcRenderer.on("mc-ready", () => {
+            hideProgress();
+            showGameToast();
+        });
+
+        function showGameToast() {
+            const old = document.getElementById("gameToast");
+            if (old) old.remove();
+
+            const toast = document.createElement("div");
+            toast.id = "gameToast";
+            toast.className = "game-toast";
+            toast.innerHTML = `
+                <div class="game-toast-icon">🎮</div>
+                <div class="game-toast-text">
+                    <div class="game-toast-title">MINECRAFT GESTARTET</div>
+                    <div class="game-toast-sub">Viel Spaß beim Spielen!</div>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add("out");
+                toast.addEventListener("animationend", () => toast.remove(), { once: true });
+            }, 4000);
+        }
+
+        ipcRenderer.on("mc-closed", () => {
+            hideProgress();
+            document.getElementById("playBtn").disabled = false;
+        });
+
+        ipcRenderer.on("play-error", (event, msg) => {
+            hideProgress();
+            document.getElementById("playBtn").disabled = false;
+            const errorMsg = document.getElementById("playErrorMsg");
+            errorMsg.style.display = "block";
+            errorMsg.innerText = msg;
+        });
+
+        const gearBtn = document.getElementById("gearBtn");
+        gearBtn.onclick = (e) => {
+            e.stopPropagation();
+            gearBtn.classList.remove("popping");
+            void gearBtn.offsetWidth;
+            gearBtn.classList.add("popping");
+            gearBtn.addEventListener("animationend", () => {
+                gearBtn.classList.remove("popping");
+            }, { once: true });
+            showScreen('settings');
+        };
+
+        function updateRam(val) {
+            document.getElementById("ramDisplay").innerHTML = val + '<span>GB</span>';
+            const slider = document.getElementById("ramSlider");
+            const pct = ((val - 2) / (16 - 2)) * 100;
+            slider.style.background = `linear-gradient(to right, var(--accent) ${pct}%, rgba(255,255,255,0.08) ${pct}%)`;
+            ipcRenderer.send("update-ram", parseInt(val));
+        }
+
+        updateRam(4);
+        renderVersions();
+
+        ;(async () => {
+            try {
+                const accounts = await ipcRenderer.invoke("get-accounts");
+                if (accounts && accounts.length > 0) {
+                    const acc = accounts[0];
+                    sessionData = { name: acc.name, uuid: acc.uuid, access_token: acc.access_token, client_token: acc.client_token };
+                    document.getElementById("playerName").innerText = acc.name;
+                    refreshPlayerHead();
+                    showScreen('menu');
+                } else {
+                    showScreen('login');
+                }
+            } catch(e) { showScreen('login'); }
+        })();
+
+    </script>
+</body>
+</html>
